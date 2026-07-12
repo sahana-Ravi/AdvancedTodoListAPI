@@ -1,0 +1,258 @@
+            AUTHORIZATION CODE GRANT TYPE
+
+If you are using Authorization Code  grant typ, you need to hit 2 api's
+/auth (which will give login page and return authorization code)
+ /toekn (which will take the authorization code and send access token, id token and refresh token)
+
+ This process is not valid
+
+ /login -> /auth (returns html) -> /token -> access toekn(on postman response)
+ you cannot load login page, /auth will fail
+
+ so you need to call these API's manually on postman
+ call /auth
+ call /token
+ and then use that token for every api and test it on postman
+
+ So just write you security filter chain code
+
+                 Keycloak
+                   │
+         (Manual Authentication)
+                   │
+                   ▼
+ 1. Call /auth
+    (or let Postman's OAuth 2.0 feature do it)
+
+                   │
+                   ▼
+ 2. Get Authorization Code
+
+                   │
+                   ▼
+ 3. Call /token
+
+                   │
+                   ▼
+ 4. Get Access Token
+
+                   │
+                   ▼
+ 5. Call Spring Boot APIs
+
+ Authorization: Bearer eyJ...
+
+                   │
+                   ▼
+ 6. Spring Security validates the JWT
+
+                   │
+                   ▼
+ 7. Controller executes
+
+
+
+
+
+
+
+              PASSWORD GRANT TYPE
+
+ In password grant type
+ you will provide username and password to the /token url and it will provide you the access token
+ here there is no login paage given by the IDP provider
+ you have to write your own login page
+ or you need to pass username and password manually to the /token url
+
+ This is a deprecated grant type in OIDC
+
+ But it is best for simple applicaion wihtout SPA
+
+
+ ou enter your password into your own application.
+
+ React (or Spring Boot)
+
+ Username: Sahana
+ Password: ********
+
+ Your application now knows your password.
+
+ Then your application sends it to Keycloak:
+
+ POST /token
+
+ grant_type=password
+ username=Sahana
+ password=********
+ client_id=todo
+ client_secret=...
+
+ So the password flows like this:
+
+ User
+    │
+    ▼
+ Your React/Spring Boot  ← knows the password
+    │
+    ▼
+ Keycloak
+
+
+
+
+
+
+
+
+                      CLIENT_CREDENTIAL GRANT TYPE
+
+   IT is used when two services wants to connect with one another
+
+
+   Absolutely! Client Credentials Grant is actually much simpler than Authorization Code Flow because there is no user involved at all.
+
+   Think of it as application-to-application authentication.
+
+   Real-world Example
+
+   Suppose you have two microservices:
+
+   Order Service
+           │
+           │ wants inventory information
+           ▼
+   Inventory Service
+
+   There is no human using these services.
+
+   The Inventory Service just needs to know:
+
+   "Is this really the Order Service?"
+
+   It doesn't care about Sahana or any other user.
+
+   Authentication Flow
+   Order Service
+       │
+       │ client_id
+       │ client_secret
+       ▼
+   Keycloak
+       │
+   Validates client
+       ▼
+   Access Token
+       │
+       ▼
+   Order Service
+       │
+   Authorization: Bearer token
+       ▼
+   Inventory Service
+
+   Notice:
+
+   ❌ No username
+
+   ❌ No password
+
+   ❌ No login page
+
+   Token Request
+
+   Call Keycloak:
+
+   POST /realms/TodoRealm/protocol/openid-connect/token
+
+   Body
+
+   grant_type=client_credentials
+   client_id=inventory-service
+   client_secret=xxxxxxxx
+
+   That's all.
+
+   Keycloak returns
+
+   {
+     "access_token":"eyJ....",
+     "expires_in":300,
+     "token_type":"Bearer"
+   }
+
+
+
+
+
+
+   Client : todo
+   secret ImfeCtGBU5ORyiA326yONtHYyp11390EfZqvur3jHRoESK5l2EqLp98dsX76a7OYBw4m3lchLUSBTb5mJZEnxU
+   RELAME: AdvancedTodo
+   AuthURl
+   http://localhost:8080/realms/TodoRealm/protocol/openid-connect/auth
+   TokenUrl
+   http://localhost:8080/realms/AdvancedTodo/protocol/openid-connect/token
+
+
+   {client_id=todo
+   response_type=code
+   scope=openid
+    redirect_uri=http://localhost:8080/login
+   }
+
+   TokenURL
+   http://localhost:8080/realms/TodoRealm/protocol/openid-connect/token
+   grant_type=authorization_code client_id=todo code=<authorization_code> redirect_uri=http://localhost:login
+
+
+
+
+
+
+
+                     CREATE USERS USING API ON KEYCLOCK
+
+   Yes, Keycloak provides a dedicated Admin REST API endpoint that allows you to programmatically create and add users from your own application.
+   The EndpointTo create a user, you must send a
+   POST request to the following endpoint:POST /admin/realms/{realm-name}/usersStep-by-Step Implementation1.
+   Obtain an Admin Access TokenBecause creating users is a restricted administrative action, your application must first authenticate with Keycloak to get a bearer token.
+   You can use a dedicated service account client with the manage-users role.
+   Endpoint: POST /realms/{realm-name}/protocol/openid-connect/tokenPayload (Content-Type: application/x-www-form-urlencoded):grant_type: client_credentialsclient_id: your-admin-clientclient_secret: your-client-secret2.
+   Create the UserOnce you have the access token, include it in the Authorization header (Bearer <token>) of your request to the user creation endpoint.Example Request Payload
+   (JSON):json{
+     "username": "johndoe",
+     "enabled": true,
+     "email": "john.doe@example.com",
+     "firstName": "John",
+     "lastName": "Doe",
+     "credentials": [
+       {
+         "type": "password",
+         "value": "temporaryPassword123",
+         "temporary": false
+       }
+     ]
+   }
+
+
+
+
+
+
+
+
+
+                          AntPathMatchers in SpringSecurity fileter chaing to pervent auth to h2 db url
+
+
+   What is AntPathRequestMatcher?AntPathRequestMatcher is a core utility class in Spring Security used to match incoming HTTP requests against a specific URL pattern.
+   It uses Apache Ant-style path patterns [1] (such as ? for a single character, * for zero or more characters, and ** for zero or more directories) to determine if a security rule applies to a request.
+   Why do we need it here?When you call requestMatchers("/h2-console/**") as a raw string in Spring Boot 3, Spring Security tries to protect you by implicitly assigning a matcher type.
+   It defaults to using MvcRequestMatcher, which relies on Spring MVC’s architecture to resolve paths.This causes the 401 Unauthorized loop with the H2 console for two critical reasons:1.
+   The H2 Console is a Servlet, Not a Spring MVC ControllerThe H2 database console is not a standard Spring MVC endpoint.
+   It is a standalone, legacy Java Servlet registered under your application.
+   The Problem: MvcRequestMatcher only looks for paths registered within Spring MVC's dispatcher servlet handler mappings.
+   The Result: Because Spring MVC doesn't "own" the /h2-console path, the raw string matcher skips it.
+   The security engine falls back to your catch-all .anyRequest().authenticated() rule, which passes the request to your OAuth2 JWT validator.
+   Since your browser isn't sending a JWT token to the console page, you get a 401 error.
